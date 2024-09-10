@@ -1,21 +1,22 @@
 from __future__ import absolute_import
 
 import json
+
 try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
+
 import sys
 import time
 import traceback
-
 import unittest
 
 
 class PipedTestResult(unittest.result.TestResult):
-    """A test result class that can print test results in a machine-parseable format.
-    """
-    RESULT_SEPARATOR = '\x1f'  # ASCII US (Unit Separator)
+    """A test result class that can print test results in a machine-parseable format."""
+
+    RESULT_SEPARATOR = "\x1f"  # ASCII US (Unit Separator)
 
     def __init__(self, stream, use_old_discovery=True):
         super(PipedTestResult, self).__init__()
@@ -45,7 +46,7 @@ class PipedTestResult(unittest.result.TestResult):
         while trimmed and not trimmed[0]:
             trimmed.pop(0)
         # Return a single string:
-        return '\n'.join(trimmed)
+        return "\n".join(trimmed)
 
     def description(self, test):
         try:
@@ -56,7 +57,7 @@ class PipedTestResult(unittest.result.TestResult):
             if test._testMethodDoc:
                 return self._trim_docstring(test._testMethodDoc)
             else:
-                return 'No description'
+                return "No description"
 
     def startTest(self, test):
         super(PipedTestResult, self).startTest(test)
@@ -66,33 +67,30 @@ class PipedTestResult(unittest.result.TestResult):
         sys.stdout = self._stdout
 
         if self.use_old_discovery:
-            parts = test.id().split('.')
-            tests_index = parts.index('tests')
-            path = '%s.%s.%s' % (parts[tests_index - 1], parts[-2], parts[-1])
+            parts = test.id().split(".")
+            tests_index = parts.index("tests")
+            path = "%s.%s.%s" % (parts[tests_index - 1], parts[-2], parts[-1])
         else:
             path = test.id()
 
-        body = {
-            'path': path,
-            'start_time': time.time()
-        }
+        body = {"path": path, "start_time": time.time()}
         if self._first:
-            self.stream.write(PipedTestRunner.START_TEST_RESULTS + '\n')
+            self.stream.write(PipedTestRunner.START_TEST_RESULTS + "\n")
             self._first = False
         else:
-            self.stream.write(self.RESULT_SEPARATOR + '\n')
-        self.stream.write('%s\n' % json.dumps(body))
+            self.stream.write(self.RESULT_SEPARATOR + "\n")
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
 
     def addSuccess(self, test):
         super(PipedTestResult, self).addSuccess(test)
         body = {
-            'status': 'OK',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'output': self._stdout.getvalue(),
+            "status": "OK",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
@@ -104,26 +102,26 @@ class PipedTestResult(unittest.result.TestResult):
 
         super(PipedTestResult, self).addError(test, err)
         body = {
-            'status': 'E',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'error': '\n'.join(traceback.format_exception(*err)),
-            'output': self._stdout.getvalue(),
+            "status": "E",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "error": "\n".join(traceback.format_exception(*err)),
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
     def addFailure(self, test, err):
         super(PipedTestResult, self).addFailure(test, err)
         body = {
-            'status': 'F',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'error': '\n'.join(traceback.format_exception(*err)),
-            'output': self._stdout.getvalue(),
+            "status": "F",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "error": "\n".join(traceback.format_exception(*err)),
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
@@ -131,78 +129,78 @@ class PipedTestResult(unittest.result.TestResult):
         super(PipedTestResult, self).addSubTest(test, subtest, err)
         if err is None:
             body = {
-                'status': 'OK',
-                'end_time': time.time(),
-                'description': self.description(test),
-                'output': self._stdout.getvalue(),
+                "status": "OK",
+                "end_time": time.time(),
+                "description": self.description(test),
+                "output": self._stdout.getvalue(),
             }
-            self.stream.write('%s\n' % json.dumps(body))
+            self.stream.write("%s\n" % json.dumps(body))
             self.stream.flush()
         elif issubclass(err[0], test.failureException):
             body = {
-                'status': 'F',
-                'end_time': time.time(),
-                'description': self.description(test),
-                'error': '\n'.join(traceback.format_exception(*err)),
-                'output': self._stdout.getvalue(),
+                "status": "F",
+                "end_time": time.time(),
+                "description": self.description(test),
+                "error": "\n".join(traceback.format_exception(*err)),
+                "output": self._stdout.getvalue(),
             }
-            self.stream.write('%s\n' % json.dumps(body))
+            self.stream.write("%s\n" % json.dumps(body))
             self.stream.flush()
         else:
             body = {
-                'status': 'E',
-                'end_time': time.time(),
-                'description': self.description(test),
-                'error': '\n'.join(traceback.format_exception(*err)),
-                'output': self._stdout.getvalue(),
+                "status": "E",
+                "end_time": time.time(),
+                "description": self.description(test),
+                "error": "\n".join(traceback.format_exception(*err)),
+                "output": self._stdout.getvalue(),
             }
-            self.stream.write('%s\n' % json.dumps(body))
+            self.stream.write("%s\n" % json.dumps(body))
             self.stream.flush()
 
     def addSkip(self, test, reason):
         super(PipedTestResult, self).addSkip(test, reason)
         body = {
-            'status': 's',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'error': reason,
-            'output': self._stdout.getvalue(),
+            "status": "s",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "error": reason,
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
     def addExpectedFailure(self, test, err):
         super(PipedTestResult, self).addExpectedFailure(test, err)
         body = {
-            'status': 'x',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'error': '\n'.join(traceback.format_exception(*err)),
-            'output': self._stdout.getvalue(),
+            "status": "x",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "error": "\n".join(traceback.format_exception(*err)),
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
     def addUnexpectedSuccess(self, test):
         super(PipedTestResult, self).addUnexpectedSuccess(test)
         body = {
-            'status': 'u',
-            'end_time': time.time(),
-            'description': self.description(test),
-            'output': self._stdout.getvalue(),
+            "status": "u",
+            "end_time": time.time(),
+            "description": self.description(test),
+            "output": self._stdout.getvalue(),
         }
-        self.stream.write('%s\n' % json.dumps(body))
+        self.stream.write("%s\n" % json.dumps(body))
         self.stream.flush()
         self._current_test = None
 
 
 class PipedTestRunner(unittest.TextTestRunner):
-    """A test runner class that displays results in machine-parseable format.
-    """
-    START_TEST_RESULTS = '\x02'  # ASCII STX (Start of Text)
-    END_TEST_RESULTS = '\x03'    # ASCII ETX (End of Text)
+    """A test runner class that displays results in machine-parseable format."""
+
+    START_TEST_RESULTS = "\x02"  # ASCII STX (Start of Text)
+    END_TEST_RESULTS = "\x03"  # ASCII ETX (End of Text)
 
     def __init__(self, stream=sys.stdout, use_old_discovery=False):
         self.stream = stream
@@ -218,7 +216,7 @@ class PipedTestRunner(unittest.TextTestRunner):
         test(result)
 
         # Report end of test run
-        self.stream.write(self.END_TEST_RESULTS + '\n')
+        self.stream.write(self.END_TEST_RESULTS + "\n")
         self.stream.flush()
 
         # Restore the stdout reference

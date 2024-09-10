@@ -1,8 +1,9 @@
 # Generic UI events structure
 
+
 class EventSource(object):
-    """Generate GUI events.
-    """
+    """Generate GUI events."""
+
     _events = {}
 
     @classmethod

@@ -1,5 +1,5 @@
 {
   "Host": "..",
   "Port": 8080,
-  "StartDir" : "."
+  "StartDir" : "tests"
 }

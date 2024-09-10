@@ -1,6 +1,8 @@
-from datetime import datetime
-from events import EventSource
+import os
 import sys
+from datetime import datetime
+
+from libs.events import EventSource
 
 
 class ModelLoadError(Exception):
@@ -19,17 +21,17 @@ class TestMethod(EventSource):
     FAILING_STATES = (STATUS_FAIL, STATUS_UNEXPECTED_SUCCESS, STATUS_ERROR)
 
     STATUS_LABELS = {
-        STATUS_PASS: 'passed',
-        STATUS_SKIP: 'skipped',
-        STATUS_FAIL: 'failures',
-        STATUS_EXPECTED_FAIL: 'expected failures',
-        STATUS_UNEXPECTED_SUCCESS: 'unexpected successes',
-        STATUS_ERROR: 'errors',
+        STATUS_PASS: "passed",
+        STATUS_SKIP: "skipped",
+        STATUS_FAIL: "failures",
+        STATUS_EXPECTED_FAIL: "expected failures",
+        STATUS_UNEXPECTED_SUCCESS: "unexpected successes",
+        STATUS_ERROR: "errors",
     }
 
     def __init__(self, name, testCase):
         self.name = name
-        self.description = ''
+        self.description = ""
         self._active = True
         self._result = None
 
@@ -39,15 +41,15 @@ class TestMethod(EventSource):
         self.parent._update_active()
 
         # Announce that there is a new test method
-        self.emit('new')
+        self.emit("new")
 
     def __repr__(self):
-        return u'TestMethod %s' % self.path
+        return "TestMethod %s" % self.path
 
     @property
     def path(self):
         "The dotted-path name that identifies this test method to the test runner"
-        return u'%s.%s' % (self.parent.path, self.name)
+        return "%s.%s" % (self.parent.path, self.name)
 
     @property
     def active(self):
@@ -59,13 +61,13 @@ class TestMethod(EventSource):
         if self._active:
             if not is_active:
                 self._active = False
-                self.emit('inactive')
+                self.emit("inactive")
                 if cascade:
                     self.parent._update_active()
         else:
             if is_active:
                 self._active = True
-                self.emit('active')
+                self.emit("active")
                 if cascade:
                     self.parent._update_active()
 
@@ -76,39 +78,39 @@ class TestMethod(EventSource):
     @property
     def status(self):
         try:
-            return self._result['status']
+            return self._result["status"]
         except TypeError:
             return None
 
     @property
     def output(self):
         try:
-            return self._result['output']
+            return self._result["output"]
         except TypeError:
             return None
 
     @property
     def error(self):
         try:
-            return self._result['error']
+            return self._result["error"]
         except TypeError:
             return None
 
     @property
     def duration(self):
         try:
-            return self._result['duration']
+            return self._result["duration"]
         except TypeError:
             return None
 
     def set_result(self, status, output, error, duration):
         self._result = {
-            'status': status,
-            'output': output,
-            'error': error,
-            'duration': duration,
+            "status": status,
+            "output": output,
+            "error": error,
+            "duration": duration,
         }
-        self.emit('status_update')
+        self.emit("status_update")
 
 
 class TestCase(dict, EventSource):
@@ -123,14 +125,14 @@ class TestCase(dict, EventSource):
         self.parent._update_active()
 
         # Announce that there is a new TestCase
-        self.emit('new')
+        self.emit("new")
 
     def __repr__(self):
-        return u'TestCase %s' % self.path
+        return "TestCase %s" % self.path
 
     @property
     def path(self):
-        return u'%s.%s' % (self.parent.path, self.name)
+        return "%s.%s" % (self.parent.path, self.name)
 
     @property
     def active(self):
@@ -140,7 +142,7 @@ class TestCase(dict, EventSource):
         if self._active:
             if not is_active:
                 self._active = False
-                self.emit('inactive')
+                self.emit("inactive")
                 if cascade:
                     self.parent._update_active()
                 for testMethod in self.values():
@@ -148,7 +150,7 @@ class TestCase(dict, EventSource):
         else:
             if is_active:
                 self._active = True
-                self.emit('active')
+                self.emit("active")
                 if cascade:
                     self.parent._update_active()
                 for testMethod in self.values():
@@ -217,16 +219,16 @@ class TestModule(dict, EventSource):
         self.parent[name] = self
 
         # Announce that there is a new test case
-        self.emit('new')
+        self.emit("new")
 
     def __repr__(self):
-        return u'TestModule %s' % self.path
+        return "TestModule %s" % self.path
 
     @property
     def path(self):
         "The dotted-path name that identifies this app to the test runner"
         if self.parent.path:
-            return u'%s.%s' % (self.parent.path, self.name)
+            return "%s.%s" % (self.parent.path, self.name)
         return self.name
 
     @property
@@ -238,7 +240,7 @@ class TestModule(dict, EventSource):
         if self._active:
             if not is_active:
                 self._active = False
-                self.emit('inactive')
+                self.emit("inactive")
                 if cascade:
                     self.parent._update_active()
                 for testModule in self.values():
@@ -246,7 +248,7 @@ class TestModule(dict, EventSource):
         else:
             if is_active:
                 self._active = True
-                self.emit('active')
+                self.emit("active")
                 if cascade:
                     self.parent._update_active()
                 for testModule in self.values():
@@ -313,18 +315,18 @@ class TestModule(dict, EventSource):
 
 
 class Project(dict, EventSource):
-    """A data representation of an project, containing 1+ test apps.
-    """
+    """A data representation of an project, containing 1+ test apps."""
+
     def __init__(self):
         super(Project, self).__init__()
         self.errors = []
 
     def __repr__(self):
-        return u'Project'
+        return "Project"
 
     @property
     def path(self):
-        return ''
+        return ""
 
     def find_tests(self, active=True, status=None, labels=None):
         tests = []
@@ -369,7 +371,7 @@ class Project(dict, EventSource):
         return count, tests
 
     def confirm_exists(self, test_label, timestamp=None):
-        parts = test_label.split('.')
+        parts = test_label.split(".")
         if len(parts) < 2:
             return
 
@@ -418,11 +420,16 @@ class UnittestProject(Project):
     def __init__(self):
         super(UnittestProject, self).__init__()
 
-    def discover_commandline(self, testdir='.'):
-        "Command line: Discover all available tests in a project."
-        return [sys.executable, 'discover.py', '--testdir', testdir]
+    def discover_commandline(self, testdir="tests"):
+        """Command line: Discover all available tests in a project."""
+        # Dynamically resolve the absolute path to discover.py in the libs directory
+        base_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current file
+        discover_script = os.path.join(base_dir, "discover.py")
+        return [sys.executable, discover_script, "--testdir", testdir]
 
-    def execute_commandline(self, labels, testdir='.'):
-        "Return the command line to execute the specified test labels"
-        args = [sys.executable, 'runner.py', '--testdir', testdir]
+    def execute_commandline(self, labels, testdir="tests"):
+        """Return the command line to execute the specified test labels."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current file
+        runner_script = os.path.join(base_dir, "runner.py")
+        args = [sys.executable, runner_script, "--testdir", testdir]
         return args + labels

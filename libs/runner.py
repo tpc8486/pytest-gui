@@ -4,13 +4,14 @@ import sys
 from threading import Thread
 
 try:
-    from Queue import Queue, Empty
+    from Queue import Empty, Queue
 except ImportError:
     from queue import Queue, Empty  # python 3.x
 
-from events import EventSource
-from model import TestMethod
-import pipes
+from libs import pipes
+
+from libs.events import EventSource
+from libs.model import TestMethod
 
 
 def enqueue_output(out, queue):
@@ -19,36 +20,37 @@ def enqueue_output(out, queue):
     Reads content from `out` one line at a time, and puts it onto
     queue for consumption in a separate thread.
     """
-    for line in iter(out.readline, b''):
-        queue.put(line.strip().decode('utf-8'))
+    for line in iter(out.readline, b""):
+        queue.put(line.strip().decode("utf-8"))
     out.close()
 
 
 def parse_status_and_error(post):
-    if post['status'] == 'OK':
+    if post["status"] == "OK":
         status = TestMethod.STATUS_PASS
         error = None
-    elif post['status'] == 's':
+    elif post["status"] == "s":
         status = TestMethod.STATUS_SKIP
-        error = 'Skipped: ' + post.get('error')
-    elif post['status'] == 'F':
+        error = "Skipped: " + post.get("error")
+    elif post["status"] == "F":
         status = TestMethod.STATUS_FAIL
-        error = post.get('error')
-    elif post['status'] == 'x':
+        error = post.get("error")
+    elif post["status"] == "x":
         status = TestMethod.STATUS_EXPECTED_FAIL
-        error = post.get('error')
-    elif post['status'] == 'u':
+        error = post.get("error")
+    elif post["status"] == "u":
         status = TestMethod.STATUS_UNEXPECTED_SUCCESS
         error = None
-    elif post['status'] == 'E':
+    elif post["status"] == "E":
         status = TestMethod.STATUS_ERROR
-        error = post.get('error')
+        error = post.get("error")
 
     return status, error
 
 
 class Runner(EventSource):
     "A wrapper around the subprocess that executes tests."
+
     def __init__(self, project, count, labels, testdir):
         self.project = project
 
@@ -59,7 +61,7 @@ class Runner(EventSource):
             stderr=subprocess.PIPE,
             shell=False,
             bufsize=1,
-            close_fds='posix' in sys.builtin_module_names
+            close_fds="posix" in sys.builtin_module_names,
         )
 
         # Piped stdout/stderr reads are blocking; therefore, we need to
@@ -105,7 +107,9 @@ class Runner(EventSource):
 
     @property
     def any_failed(self):
-        return sum(self.result_count.get(state, 0) for state in TestMethod.FAILING_STATES)
+        return sum(
+            self.result_count.get(state, 0) for state in TestMethod.FAILING_STATES
+        )
 
     def terminate(self):
         "Stop the executor."
@@ -145,7 +149,11 @@ class Runner(EventSource):
         # Process all the full lines that are available
         for line in lines:
             # Look for a separator.
-            if line in (pipes.PipedTestResult.RESULT_SEPARATOR, pipes.PipedTestRunner.START_TEST_RESULTS, pipes.PipedTestRunner.END_TEST_RESULTS):
+            if line in (
+                    pipes.PipedTestResult.RESULT_SEPARATOR,
+                    pipes.PipedTestRunner.START_TEST_RESULTS,
+                    pipes.PipedTestRunner.END_TEST_RESULTS,
+            ):
                 if self.buffer is None:
                     # Preamble is finished. Set up the line buffer.
                     self.buffer = []
@@ -160,28 +168,30 @@ class Runner(EventSource):
 
                     else:
                         # We have subtests; capture the most important status (until we can capture all the statuses)
-                        status = TestMethod.STATUS_PASS  # Assume pass until told otherwise
-                        error = ''
+                        status = (
+                            TestMethod.STATUS_PASS
+                        )  # Assume pass until told otherwise
+                        error = ""
                         for line_num in range(1, len(self.buffer)):
                             post = json.loads(self.buffer[line_num])
                             subtest_status, subtest_error = parse_status_and_error(post)
                             if subtest_status > status:
                                 status = subtest_status
                             if subtest_error:
-                                error += subtest_error + '\n\n'
+                                error += subtest_error + "\n\n"
 
                     # Increase the count of executed tests
                     self.completed_count = self.completed_count + 1
 
                     # Get the start and end times for the test
-                    start_time = float(pre['start_time'])
-                    end_time = float(post['end_time'])
+                    start_time = float(pre["start_time"])
+                    end_time = float(post["end_time"])
 
-                    self.current_test.description = post['description']
+                    self.current_test.description = post["description"]
 
                     self.current_test.set_result(
                         status=status,
-                        output=post.get('output'),
+                        output=post.get("output"),
                         error=error,
                         duration=end_time - start_time,
                     )
@@ -191,24 +201,31 @@ class Runner(EventSource):
                         self.start_time = start_time
                     total_duration = end_time - self.start_time
                     time_per_test = total_duration / self.completed_count
-                    remaining_time = (self.total_count - self.completed_count) * time_per_test
+                    remaining_time = (
+                        self.total_count - self.completed_count
+                    ) * time_per_test
                     if remaining_time > 4800:
-                        remaining = '%s hours' % int(remaining_time / 2400)
+                        remaining = "%s hours" % int(remaining_time / 2400)
                     elif remaining_time > 2400:
-                        remaining = '%s hour' % int(remaining_time / 2400)
+                        remaining = "%s hour" % int(remaining_time / 2400)
                     elif remaining_time > 120:
-                        remaining = '%s mins' % int(remaining_time / 60)
+                        remaining = "%s mins" % int(remaining_time / 60)
                     elif remaining_time > 60:
-                        remaining = '%s min' % int(remaining_time / 60)
+                        remaining = "%s min" % int(remaining_time / 60)
                     else:
-                        remaining = '%ss' % int(remaining_time)
+                        remaining = "%ss" % int(remaining_time)
 
                     # Update test result counts
                     self.result_count.setdefault(status, 0)
                     self.result_count[status] = self.result_count[status] + 1
 
                     # Notify the display to update.
-                    self.emit('test_end', test_path=self.current_test.path, result=status, remaining_time=remaining)
+                    self.emit(
+                        "test_end",
+                        test_path=self.current_test.path,
+                        result=status,
+                        remaining_time=remaining,
+                    )
 
                     # Clear the decks for the next test.
                     self.current_test = None
@@ -226,13 +243,13 @@ class Runner(EventSource):
                 if self.buffer is None:
                     # Suite isn't running yet - just display the output
                     # as a status update line.
-                    self.emit('test_status_update', update=line)
+                    self.emit("test_status_update", update=line)
                 else:
                     # Suite is running - have we got an active test?
                     # Doctest (and some other tools) output invisible escape sequences.
                     # Strip these if they exist.
-                    if line.startswith('\x1b'):
-                        line = line[line.find('{'):]
+                    if line.startswith("\x1b"):
+                        line = line[line.find("{") :]
 
                     # Store the cleaned buffer
                     self.buffer.append(line)
@@ -244,24 +261,24 @@ class Runner(EventSource):
                             # No active test; first line tells us which test is running.
                             pre = json.loads(line)
                         except ValueError:
-                            self.emit('suit_end')
+                            self.emit("suit_end")
                             return True
-                        self.current_test = self.project.confirm_exists(pre['path'])
-                        self.emit('test_start', test_path=pre['path'])
+                        self.current_test = self.project.confirm_exists(pre["path"])
+                        self.emit("test_start", test_path=pre["path"])
         # If we're not finished, requeue the event.
         if finished:
             if self.error_buffer:
-                self.emit('suite_end', error='\n'.join(self.error_buffer))
+                self.emit("suite_end", error="\n".join(self.error_buffer))
             else:
-                self.emit('suite_end')
+                self.emit("suite_end")
             return False
 
         elif stopped:
             # Suite has stopped producing output.
             if self.error_buffer:
-                self.emit('suite_error', error='\n'.join(self.error_buffer))
+                self.emit("suite_error", error="\n".join(self.error_buffer))
             else:
-                self.emit('suite_error', error='Test output ended unexpectedly')
+                self.emit("suite_error", error="Test output ended unexpectedly")
 
             # Suite has finished; don't requeue
             return False
@@ -270,16 +287,17 @@ class Runner(EventSource):
             # Still running - requeue event.
             return True
 
+
 import argparse
 import unittest
 
 
 class PyTestExecutor(object):
-    '''
+    """
     This is a thing which, when run, produces a stream
     of well-formed test result outputs. Its processing is
     initiated by the top-level Runner class
-    '''
+    """
 
     def __init__(self):
 
@@ -300,12 +318,12 @@ class PyTestExecutor(object):
         self.specified_list = specified_list
 
     def stream_suite(self, suite):
-        print ("Calling stream_suite: " + str(suite))
+        print("Calling stream_suite: " + str(suite))
         pipes.PipedTestRunner().run(suite)
 
-    def stream_results(self, testdir=None):
+    def stream_results(self, testdir="tests"):
         if testdir is None:
-            testdir = '.'
+            testdir="tests"
 
         loader = unittest.TestLoader()
         tests = loader.discover(testdir)
@@ -317,7 +335,6 @@ class PyTestExecutor(object):
         else:
             suite = unittest.TestSuite()
 
-
             # Add individual test cases.
             for test in flat_tests:
                 if test.id() in self.specified_list:
@@ -325,26 +342,29 @@ class PyTestExecutor(object):
 
             # Add all tests in a file.
             for specified in self.specified_list:
-                if specified.count('.') == 0:
+                if specified.count(".") == 0:
                     for test in flat_tests:
-                        module_name = test.id()[0:test.id().index('.')]
+                        module_name = test.id()[0 : test.id().index(".")]
                         if specified == module_name:
                             suite.addTest(test)
 
             # Add all tests in a class within a file.
             for specified in self.specified_list:
-                if specified.count('.') == 1:
+                if specified.count(".") == 1:
                     for test in flat_tests:
-                        module_name = test.id()[0:test.id().rindex('.')]
+                        module_name = test.id()[0 : test.id().rindex(".")]
                         if specified == module_name:
                             suite.addTest(test)
 
             self.stream_suite(suite)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--testdir', dest='testdir', default='.', help='Directory to choose tests from')
-    parser.add_argument('labels', nargs=argparse.REMAINDER, help='Test labels to run.')
+    parser.add_argument(
+        "--testdir", dest="testdir", default=".", help="Directory to choose tests from"
+    )
+    parser.add_argument("labels", nargs=argparse.REMAINDER, help="Test labels to run.")
     options = parser.parse_args()
     executor = PyTestExecutor()
 
@@ -352,11 +372,8 @@ if __name__ == '__main__':
     # options.labels.append('test_acquire.TestAcquire.test_print_1')
 
     if options.labels is not None:
-        print('Labels: ', options.labels)
-
+        print("Labels: ", options.labels)
 
     if options.labels:
         executor.run_only(options.labels)
     executor.stream_results(options.testdir)
-
-

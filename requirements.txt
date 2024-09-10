@@ -1,2 +1,3 @@
 Pygments==2.7.4
 tkreadonly==0.6.1
+pytest

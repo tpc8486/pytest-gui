@@ -1,13 +1,15 @@
 # All GUI related components go in here.
 
 import subprocess
+import sys
+
 try:
-    from Tkinter import *
-    from tkFont import *
-    from ttk import *
-    import tkMessageBox
     import tkFileDialog as filedialog
+    import tkMessageBox
+    from tkFont import *
+    from Tkinter import *
     from tkreadonly import ReadOnlyText
+    from ttk import *
 except ImportError:
     from tkinter import filedialog
     from tkinter import *
@@ -16,41 +18,41 @@ except ImportError:
     from tkinter import messagebox as tkMessageBox
     from tkreadonly import ReadOnlyText
 
-from model import TestMethod, TestCase, TestModule, ModelLoadError
-from runner import Runner
-from config import get_setting, update_settings
 import os
 
+from libs.config import get_setting, update_settings
+from libs.model import ModelLoadError, TestCase, TestMethod, TestModule
+from libs.runner import Runner
 
 # Display constants for test status
 STATUS = {
     TestMethod.STATUS_PASS: {
-        'description': u'Pass',
-        'symbol': u'\u25cf',   # Circle
+        "description": "Pass",
+        "symbol": "\u25cf",  # Circle
         # 'symbol': u'\u2714',   # Checkmark
         # 'symbol': u'Pass',
-        'tag': 'pass',
-        'color': '#28C025',
+        "tag": "pass",
+        "color": "#28C025",
     },
     TestMethod.STATUS_SKIP: {
-        'description': u'Skipped',
-        'symbol': u'\u25cf',   # Circle
-        'tag': 'skip',
-        'color': '#259EBF'
+        "description": "Skipped",
+        "symbol": "\u25cf",  # Circle
+        "tag": "skip",
+        "color": "#259EBF",
     },
     TestMethod.STATUS_FAIL: {
-        'description': u'Failure',
-        'symbol': u'\u25cf',   # Circle
-        'tag': 'fail',
-        'color': '#E32C2E'
-    }
+        "description": "Failure",
+        "symbol": "\u25cf",  # Circle
+        "tag": "fail",
+        "color": "#E32C2E",
+    },
 }
 
 STATUS_DEFAULT = {
-    'description': 'Not\nexecuted',
-    'symbol': u'',
-    'tag': None,
-    'color': '#BFBFBF',
+    "description": "Not\nexecuted",
+    "symbol": "",
+    "tag": None,
+    "color": "#BFBFBF",
 }
 
 
@@ -61,14 +63,14 @@ class MainWindow(object):
 
         # Root window
         self.root = root
-        self.root.title('GUI Test Runner')
-        self.root.geometry('1024x768')
-        self.root.option_add('*tearOff', FALSE)
+        self.root.title("GUI Test Runner")
+        self.root.geometry("1024x768")
+        self.root.option_add("*tearOff", FALSE)
 
         # Catch the close button
         self.root.protocol("WM_DELETE_WINDOW", self.cmd_quit)
         # Catch the "quit" event.
-        self.root.createcommand('exit', self.cmd_quit)
+        self.root.createcommand("exit", self.cmd_quit)
 
         # Setup the menu
         self._setup_menubar()
@@ -85,11 +87,11 @@ class MainWindow(object):
         self.root.rowconfigure(2, weight=0)
 
         # Set up listeners for runner events.
-        Runner.bind('test_status_update', self.on_executorStatusUpdate)
-        Runner.bind('test_start', self.on_executorTestStart)
-        Runner.bind('test_end', self.on_executorTestEnd)
-        Runner.bind('suite_end', self.on_executorSuiteEnd)
-        Runner.bind('suite_error', self.on_executorSuiteError)
+        Runner.bind("test_status_update", self.on_executorStatusUpdate)
+        Runner.bind("test_start", self.on_executorTestStart)
+        Runner.bind("test_end", self.on_executorTestEnd)
+        Runner.bind("suite_end", self.on_executorSuiteEnd)
+        Runner.bind("suite_error", self.on_executorSuiteError)
 
         # Now that we've laid out the grid, hide the error and output text
         # until we actually have an error/output to display
@@ -102,61 +104,69 @@ class MainWindow(object):
 
         # File menubar
         self.menu_file = Menu(self.menubar)
-        self.menubar.add_cascade(menu=self.menu_file, label='File')
+        self.menubar.add_cascade(menu=self.menu_file, label="File")
         # self.menu_file.add_command(label='Load Run', command=self.cmd_load_run)
         # self.menu_file.add_command(label='Save Run', command=self.cmd_export_run)
-        self.menu_file.add_command(label='Quit', command=self.cmd_quit)
+        self.menu_file.add_command(label="Quit", command=self.cmd_quit)
 
         # Test Menubar
         self.menu_test = Menu(self.menubar)
-        self.menubar.add_cascade(menu=self.menu_test, label='Test')
+        self.menubar.add_cascade(menu=self.menu_test, label="Test")
 
-        self.menu_test.add_command(label='Run all', command=self.cmd_run_all)
-        self.menu_test.add_command(label='Run selected tests', command=self.cmd_run_selected)
-        self.menu_test.add_command(label='Re-run failed tests', command=self.cmd_rerun)
+        self.menu_test.add_command(label="Run all", command=self.cmd_run_all)
+        self.menu_test.add_command(
+            label="Run selected tests", command=self.cmd_run_selected
+        )
+        self.menu_test.add_command(label="Re-run failed tests", command=self.cmd_rerun)
 
         # Add help menu.
         self.menu_help = Menu(self.menubar)
-        self.menubar.add_cascade(menu=self.menu_help, label='Help')
+        self.menubar.add_cascade(menu=self.menu_help, label="Help")
 
-        self.menu_help.add_command(label='Documentation', command=self.cmd_help_documentation)
-
+        self.menu_help.add_command(
+            label="Documentation", command=self.cmd_help_documentation
+        )
 
         # last step - configure the menubar
-        self.root['menu'] = self.menubar
+        self.root["menu"] = self.menubar
 
     def _setup_button_toolbar(self):
-        '''
+        """
         The button toolbar runs as a horizontal area at the top of the GUI.
         It is a persistent GUI component
-        '''
+        """
 
         # Main toolbar
         self.toolbar = Frame(self.root)
         self.toolbar.grid(column=0, row=0, sticky=(W, E))
 
         # Buttons on the toolbar
-        self.run_selected_button = Button(self.toolbar, text='Run',
-                                          command=self.cmd_run_selected,
-                                          state=DISABLED)
+        self.run_selected_button = Button(
+            self.toolbar, text="Run", command=self.cmd_run_selected, state=DISABLED
+        )
         self.run_selected_button.grid(column=0, row=0)
 
-        self.run_all_button = Button(self.toolbar, text='Run all', command=self.cmd_run_all)
+        self.run_all_button = Button(
+            self.toolbar, text="Run all", command=self.cmd_run_all
+        )
         self.run_all_button.grid(column=1, row=0)
 
-        self.rerun_button = Button(self.toolbar, text='Re-run', command=self.cmd_rerun, state=DISABLED)
+        self.rerun_button = Button(
+            self.toolbar, text="Re-run", command=self.cmd_rerun, state=DISABLED
+        )
         self.rerun_button.grid(column=2, row=0)
-        self.stop_button = Button(self.toolbar, text='Stop', command=self.cmd_stop, state=DISABLED)
+        self.stop_button = Button(
+            self.toolbar, text="Stop", command=self.cmd_stop, state=DISABLED
+        )
         self.stop_button.grid(column=3, row=0)
-
 
         self.toolbar.columnconfigure(0, weight=0)
         self.toolbar.rowconfigure(0, weight=1)
 
     def _setup_main_content(self):
-        '''
+        """
         Sets up the main content area. It is a persistent GUI component
-        '''
+        """
 
         # Main content area
         self.content = PanedWindow(self.root, orient=HORIZONTAL)
@@ -178,9 +188,9 @@ class MainWindow(object):
         self.content.pane(1, weight=2)
 
     def _setup_left_frame(self):
-        '''
+        """
         The left frame mostly consists of the tree widget
-        '''
+        """
 
         # The left-hand side frame on the main content area
         # The tabs for the two trees
@@ -195,27 +205,41 @@ class MainWindow(object):
         # The tree for all tests
         self.all_tests_tree_frame = Frame(self.content)
         self.all_tests_tree_frame.grid(column=0, row=0, sticky=(N, S, E, W))
-        self.tree_notebook.add(self.all_tests_tree_frame, text='All tests')
+        self.tree_notebook.add(self.all_tests_tree_frame, text="All tests")
 
         self.all_tests_tree = Treeview(self.all_tests_tree_frame)
         self.all_tests_tree.grid(column=0, row=0, sticky=(N, S, E, W))
 
         # Set up the tag colors for tree nodes.
         for status, config in STATUS.items():
-            self.all_tests_tree.tag_configure(config['tag'], foreground=config['color'])
-        self.all_tests_tree.tag_configure('inactive', foreground='lightgray')
+            self.all_tests_tree.tag_configure(config["tag"], foreground=config["color"])
+        self.all_tests_tree.tag_configure("inactive", foreground="lightgray")
 
         # Listen for button clicks on tree nodes
-        self.all_tests_tree.tag_bind('TestModule', '<Double-Button-1>', self.on_testModuleClicked)
-        self.all_tests_tree.tag_bind('TestCase', '<Double-Button-1>', self.on_testCaseClicked)
-        self.all_tests_tree.tag_bind('TestMethod', '<Double-Button-1>', self.on_testMethodClicked)
+        self.all_tests_tree.tag_bind(
+            "TestModule", "<Double-Button-1>", self.on_testModuleClicked
+        )
+        self.all_tests_tree.tag_bind(
+            "TestCase", "<Double-Button-1>", self.on_testCaseClicked
+        )
+        self.all_tests_tree.tag_bind(
+            "TestMethod", "<Double-Button-1>", self.on_testMethodClicked
+        )
 
-        self.all_tests_tree.tag_bind('TestModule', '<<TreeviewSelect>>', self.on_testModuleSelected)
-        self.all_tests_tree.tag_bind('TestCase', '<<TreeviewSelect>>', self.on_testCaseSelected)
-        self.all_tests_tree.tag_bind('TestMethod', '<<TreeviewSelect>>', self.on_testMethodSelected)
+        self.all_tests_tree.tag_bind(
+            "TestModule", "<<TreeviewSelect>>", self.on_testModuleSelected
+        )
+        self.all_tests_tree.tag_bind(
+            "TestCase", "<<TreeviewSelect>>", self.on_testCaseSelected
+        )
+        self.all_tests_tree.tag_bind(
+            "TestMethod", "<<TreeviewSelect>>", self.on_testMethodSelected
+        )
 
         # The tree's vertical scrollbar
-        self.all_tests_tree_scrollbar = Scrollbar(self.all_tests_tree_frame, orient=VERTICAL)
+        self.all_tests_tree_scrollbar = Scrollbar(
+            self.all_tests_tree_frame, orient=VERTICAL
+        )
         self.all_tests_tree_scrollbar.grid(column=1, row=0, sticky=(N, S))
 
         # Tie the scrollbar to the text views, and the text views
@@ -236,28 +260,40 @@ class MainWindow(object):
         # The tree for problem tests
         self.problem_tests_tree_frame = Frame(self.content)
         self.problem_tests_tree_frame.grid(column=0, row=0, sticky=(N, S, E, W))
-        self.tree_notebook.add(self.problem_tests_tree_frame, text='Problems')
+        self.tree_notebook.add(self.problem_tests_tree_frame, text="Problems")
 
         self.problem_tests_tree = Treeview(self.problem_tests_tree_frame)
         self.problem_tests_tree.grid(column=0, row=0, sticky=(N, S, E, W))
 
         # Set up the tag colors for tree nodes.
         for status, config in STATUS.items():
-            self.problem_tests_tree.tag_configure(config['tag'], foreground=config['color'])
-        self.problem_tests_tree.tag_configure('inactive', foreground='lightgray')
+            self.problem_tests_tree.tag_configure(
+                config["tag"], foreground=config["color"]
+            )
+        self.problem_tests_tree.tag_configure("inactive", foreground="lightgray")
 
         # Problem tree only deals with selection, not clicks.
-        self.problem_tests_tree.tag_bind('TestModule', '<<TreeviewSelect>>', self.on_testModuleSelected)
-        self.problem_tests_tree.tag_bind('TestCase', '<<TreeviewSelect>>', self.on_testCaseSelected)
-        self.problem_tests_tree.tag_bind('TestMethod', '<<TreeviewSelect>>', self.on_testMethodSelected)
+        self.problem_tests_tree.tag_bind(
+            "TestModule", "<<TreeviewSelect>>", self.on_testModuleSelected
+        )
+        self.problem_tests_tree.tag_bind(
+            "TestCase", "<<TreeviewSelect>>", self.on_testCaseSelected
+        )
+        self.problem_tests_tree.tag_bind(
+            "TestMethod", "<<TreeviewSelect>>", self.on_testMethodSelected
+        )
 
         # The tree's vertical scrollbar
-        self.problem_tests_tree_scrollbar = Scrollbar(self.problem_tests_tree_frame, orient=VERTICAL)
+        self.problem_tests_tree_scrollbar = Scrollbar(
+            self.problem_tests_tree_frame, orient=VERTICAL
+        )
         self.problem_tests_tree_scrollbar.grid(column=1, row=0, sticky=(N, S))
 
         # Tie the scrollbar to the text views, and the text views
         # to each other.
-        self.problem_tests_tree.config(yscrollcommand=self.problem_tests_tree_scrollbar.set)
+        self.problem_tests_tree.config(
+            yscrollcommand=self.problem_tests_tree_scrollbar.set
+        )
         self.problem_tests_tree_scrollbar.config(command=self.problem_tests_tree.yview)
 
         # Setup weights for the problems tree
@@ -265,11 +301,10 @@ class MainWindow(object):
         self.problem_tests_tree_frame.columnconfigure(1, weight=0)
         self.problem_tests_tree_frame.rowconfigure(0, weight=1)
 
-
     def _setup_right_frame(self):
-        '''
+        """
         Right side view output
-        '''
+        """
 
         # The right-hand side frame on the main content area
         self.details_frame = Frame(self.content)
@@ -277,15 +312,19 @@ class MainWindow(object):
         self.content.add(self.details_frame)
 
         # Add support instrument IP Address.
-        self.instrument_ip_address_label = Label(self.details_frame, text = "Meta Data")
+        self.instrument_ip_address_label = Label(self.details_frame, text="Meta Data")
         # self.instrument_ip_address_label.grid(column=0, row=0, sticky=(W))
 
         self.instr_ip_addr = StringVar()
-        self.instr_ip_addr_widget = Entry(self.details_frame, textvariable= self.instr_ip_addr, width=60)
-        self.instr_ip_addr.set(get_setting('Host') or 'Not Found')
+        self.instr_ip_addr_widget = Entry(
+            self.details_frame, textvariable=self.instr_ip_addr, width=60
+        )
+        self.instr_ip_addr.set(get_setting("Host") or "Not Found")
         # self.instr_ip_addr_widget.grid(column=1, row=0, sticky=(W))
 
-        self.reload_ip_address = Button(self.details_frame, text='Update Meta', command=self.cmd_load_ip_address)
+        self.reload_ip_address = Button(
+            self.details_frame, text="Update Meta", command=self.cmd_load_ip_address
+        )
         # self.reload_ip_address.grid(column=1, row=0, sticky=(E))
 
         # Add label for test directory
@@ -293,46 +332,81 @@ class MainWindow(object):
         self.testdir_label.grid(column=0, row=1, sticky=(W))
 
         self.testdir_name = StringVar()
-        self.testdir_widget = Entry(self.details_frame, textvariable= self.testdir_name, width=40)
-        self.testdir_name.set(get_setting('StartDir'))
+        self.testdir_widget = Entry(
+            self.details_frame, textvariable=self.testdir_name, width=40
+        )
+        self.testdir_name.set(get_setting("StartDir"))
         self.testdir_widget.grid(column=1, row=1, sticky=(W))
 
         # Reload Tests Load Button.
-        self.reload_tests_button = Button(self.details_frame, text='Reload Tests', command=self.cmd_reload_tests)
+        self.reload_tests_button = Button(
+            self.details_frame, text="Reload Tests", command=self.cmd_reload_tests
+        )
         self.reload_tests_button.grid(column=1, row=1, sticky=(E))
 
         # Test Name
-        self.name_label = Label(self.details_frame, text='Name:')
+        self.name_label = Label(self.details_frame, text="Name:")
         self.name_label.grid(column=0, row=2, pady=5, sticky=(E))
 
         self.name = StringVar()
         self.name_widget = Entry(self.details_frame, textvariable=self.name)
-        self.name_widget.configure(state='readonly')
+        self.name_widget.configure(state="readonly")
         self.name_widget.grid(column=1, row=2, pady=5, sticky=(W, E))
 
         # Test status
         self.test_status = StringVar()
-        self.test_status_widget = Label(self.details_frame, textvariable=self.test_status, width=5, anchor=CENTER)
-        f = Font(font=self.test_status_widget['font'])
-        f['weight'] = 'bold'
-        f['size'] = 40
+        self.test_status_widget = Label(
+            self.details_frame, textvariable=self.test_status, width=5, anchor=CENTER
+        )
+        f = Font(font=self.test_status_widget["font"])
+        f["weight"] = "bold"
+        f["size"] = 40
         self.test_status_widget.config(font=f)
-        self.test_status_widget.grid(column=2, row=2, padx=2, pady=2, rowspan=2, sticky=(N, W))
+        self.test_status_widget.grid(
+            column=2, row=2, padx=2, pady=2, rowspan=2, sticky=(N, W)
+        )
 
         # Test duration
-        self.duration_label = Label(self.details_frame, text='Duration:')
+        self.duration_label = Label(self.details_frame, text="Duration:")
         self.duration_label.grid(column=0, row=3, pady=5, sticky=(E,))
 
         self.duration = StringVar()
         self.duration_widget = Entry(self.details_frame, textvariable=self.duration)
-        self.duration_widget.grid(column=1, row=3, pady=5, sticky=(E, W,))
+        self.duration_widget.grid(
+            column=1,
+            row=3,
+            pady=5,
+            sticky=(
+                E,
+                W,
+            ),
+        )
 
         # Test description
-        self.description_label = Label(self.details_frame, text='Description:')
-        self.description_label.grid(column=0, row=3, pady=5, sticky=(N, E,))
+        self.description_label = Label(self.details_frame, text="Description:")
+        self.description_label.grid(
+            column=0,
+            row=3,
+            pady=5,
+            sticky=(
+                N,
+                E,
+            ),
+        )
 
         self.description = ReadOnlyText(self.details_frame, width=80, height=4)
-        self.description.grid(column=1, row=4, pady=5, columnspan=2, sticky=(N, S, E, W,))
+        self.description.grid(
+            column=1,
+            row=4,
+            pady=5,
+            columnspan=2,
+            sticky=(
+                N,
+                S,
+                E,
+                W,
+            ),
+        )
 
         self.description_scrollbar = Scrollbar(self.details_frame, orient=VERTICAL)
         self.description_scrollbar.grid(column=3, row=4, pady=5, sticky=(N, S))
@@ -340,11 +414,30 @@ class MainWindow(object):
         self.description_scrollbar.config(command=self.description.yview)
 
         # Test output
-        self.output_label = Label(self.details_frame, text='Output:')
-        self.output_label.grid(column=0, row=5, pady=5, sticky=(N, E,))
+        self.output_label = Label(self.details_frame, text="Output:")
+        self.output_label.grid(
+            column=0,
+            row=5,
+            pady=5,
+            sticky=(
+                N,
+                E,
+            ),
+        )
 
         self.output = ReadOnlyText(self.details_frame, width=80, height=10)
-        self.output.grid(column=1, row=5, pady=5, columnspan=2, sticky=(N, S, E, W,))
+        self.output.grid(
+            column=1,
+            row=5,
+            pady=5,
+            columnspan=2,
+            sticky=(
+                N,
+                S,
+                E,
+                W,
+            ),
+        )
 
         self.output_scrollbar = Scrollbar(self.details_frame, orient=VERTICAL)
         self.output_scrollbar.grid(column=3, row=5, pady=5, sticky=(N, S))
@@ -352,8 +445,16 @@ class MainWindow(object):
         self.output_scrollbar.config(command=self.output.yview)
 
         # Error message
-        self.error_label = Label(self.details_frame, text='Error:')
-        self.error_label.grid(column=0, row=6, pady=5, sticky=(N, E,))
+        self.error_label = Label(self.details_frame, text="Error:")
+        self.error_label.grid(
+            column=0,
+            row=6,
+            pady=5,
+            sticky=(
+                N,
+                E,
+            ),
+        )
 
         self.error = ReadOnlyText(self.details_frame, width=80)
         self.error.grid(column=1, row=6, pady=5, columnspan=2, sticky=(N, S, E, W))
@@ -386,7 +487,7 @@ class MainWindow(object):
         self.run_status = StringVar()
         self.run_status_label = Label(self.statusbar, textvariable=self.run_status)
         self.run_status_label.grid(column=0, row=0, sticky=(W, E))
-        self.run_status.set('Not running')
+        self.run_status.set("Not running")
 
         # Test result summary
         self.run_summary = StringVar()
@@ -394,18 +495,22 @@ class MainWindow(object):
         self.run_summary_label.grid(column=1, row=0, sticky=(W, E))
 
         # Update the run summary
-        self.run_summary.set('Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s' % {
-            'total': 0,
-            'pass': 0,
-            'fail': 0,
-            'skip': 0
-        })
+        self.run_summary.set(
+            "Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s"
+            % {"total": 0, "pass": 0, "fail": 0, "skip": 0}
+        )
 
         # Test progress
         self.progress_value = IntVar()
-        self.progress = Progressbar(self.statusbar, orient=HORIZONTAL, length=200, mode='determinate', maximum=100, variable=self.progress_value)
+        self.progress = Progressbar(
+            self.statusbar,
+            orient=HORIZONTAL,
+            length=200,
+            mode="determinate",
+            maximum=100,
+            variable=self.progress_value,
+        )
         self.progress.grid(column=2, row=0, sticky=(W, E))
-
 
         # Main window resize handle
         self.grip = Sizegrip(self.statusbar)
@@ -433,10 +538,13 @@ class MainWindow(object):
 
     def _add_test_module(self, parentNode, testModule):
         testModule_node = self.all_tests_tree.insert(
-            parentNode, 'end', testModule.path,
+            parentNode,
+            "end",
+            testModule.path,
             text=testModule.name,
-            tags=['TestModule', 'active'],
-            open=True)
+            tags=["TestModule", "active"],
+            open=True,
+        )
 
         for subModuleName, subModule in sorted(testModule.items()):
             if isinstance(subModule, TestModule):
@@ -444,18 +552,22 @@ class MainWindow(object):
             else:
                 testCase = subModule
                 testCase_node = self.all_tests_tree.insert(
-                    testModule_node, 'end', testCase.path,
+                    testModule_node,
+                    "end",
+                    testCase.path,
                     text=testCase.name,
-                    tags=['TestCase', 'active'],
-                    open=True
+                    tags=["TestCase", "active"],
+                    open=True,
                 )
 
                 for testMethod_name, testMethod in sorted(testCase.items()):
                     self.all_tests_tree.insert(
-                        testCase_node, 'end', testMethod.path,
+                        testCase_node,
+                        "end",
+                        testMethod.path,
                         text=testMethod.name,
-                        tags=['TestMethod', 'active'],
-                        open=True
+                        tags=["TestMethod", "active"],
+                        open=True,
                     )
 
     @project.setter
@@ -466,12 +578,10 @@ class MainWindow(object):
         count, labels = self._project.find_tests(True)
 
         # Update the run summary
-        self.run_summary.set('Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s' % {
-            'total': count,
-            'pass': 0,
-            'fail': 0,
-            'skip': 0
-        })
+        self.run_summary.set(
+            "Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s"
+            % {"total": count, "pass": 0, "fail": 0, "skip": 0}
+        )
 
         # Clean treeview.
         self.all_tests_tree.delete(*self.all_tests_tree.get_children())
@@ -480,31 +590,30 @@ class MainWindow(object):
         # Populate the initial tree nodes. This is recursive, because
         # the tree could be of arbitrary depth.
         for testModule_name, testModule in sorted(self._project.items()):
-            self._add_test_module('', testModule)
+            self._add_test_module("", testModule)
 
         # Listen for any state changes on nodes in the tree
-        TestModule.bind('active', self.on_nodeActive)
-        TestCase.bind('active', self.on_nodeActive)
-        TestMethod.bind('active', self.on_nodeActive)
+        TestModule.bind("active", self.on_nodeActive)
+        TestCase.bind("active", self.on_nodeActive)
+        TestMethod.bind("active", self.on_nodeActive)
 
-        TestModule.bind('inactive', self.on_nodeInactive)
-        TestCase.bind('inactive', self.on_nodeInactive)
-        TestMethod.bind('inactive', self.on_nodeInactive)
+        TestModule.bind("inactive", self.on_nodeInactive)
+        TestCase.bind("inactive", self.on_nodeInactive)
+        TestMethod.bind("inactive", self.on_nodeInactive)
 
         # Listen for new nodes added to the tree
-        TestModule.bind('new', self.on_nodeAdded)
-        TestCase.bind('new', self.on_nodeAdded)
-        TestMethod.bind('new', self.on_nodeAdded)
+        TestModule.bind("new", self.on_nodeAdded)
+        TestCase.bind("new", self.on_nodeAdded)
+        TestMethod.bind("new", self.on_nodeAdded)
 
         # Listen for any status updates on nodes in the tree.
-        TestMethod.bind('status_update', self.on_nodeStatusUpdate)
+        TestMethod.bind("status_update", self.on_nodeStatusUpdate)
 
-
-    def reload_project(self, testdir=get_setting('StartDir')):
+    def reload_project(self, testdir="tests"):
         # If the directory does not exist, throw an error message and don't do anything.
         if os.path.exists(testdir) is False:
             dialog = tkMessageBox.showerror
-            dialog(message='Directory: ' + testdir + ' does not exist!')
+            dialog(message="Directory: " + testdir + " does not exist!")
             return
 
         self._reset_all_tests_tree()
@@ -512,8 +621,7 @@ class MainWindow(object):
 
         self.project = self.load_project(self.root, self.Model, testdir)
 
-
-    def load_project(self, root, Model, testdir=get_setting('StartDir')):
+    def load_project(self, root, Model, testdir="tests"):
         self.Model = Model
         project = None
         while project is None:
@@ -531,13 +639,13 @@ class MainWindow(object):
 
                 test_list = []
                 for line in runner.stdout:
-                    test_list.append(line.strip().decode('utf-8'))
+                    test_list.append(line.strip().decode("utf-8"))
 
                 errors = []
                 for line in runner.stderr:
-                    errors.append(line.strip().decode('utf-8'))
+                    errors.append(line.strip().decode("utf-8"))
                 if errors and not test_list:
-                    raise ModelLoadError('\n'.join(errors))
+                    raise ModelLoadError("\n".join(errors))
 
                 project.refresh(test_list, errors)
             except ModelLoadError as e:
@@ -548,7 +656,7 @@ class MainWindow(object):
                 if dialog.status == dialog.CANCEL:
                     sys.exit(1)
         if project.errors:
-            dialog = IgnorableTestLoadErrorDialog(root, '\n'.join(project.errors))
+            dialog = IgnorableTestLoadErrorDialog(root, "\n".join(project.errors))
             if dialog.status == dialog.CANCEL:
                 sys.exit(1)
 
@@ -559,12 +667,16 @@ class MainWindow(object):
 
     # Menu/button commands.
     def cmd_load_run(self):
-        self.load_filename = filedialog.askopenfilename(initialdir='.', title="Select Run File to Load")
-        print (self.load_filename)
+        self.load_filename = filedialog.askopenfilename(
+            initialdir=".", title="Select Run File to Load"
+        )
+        print(self.load_filename)
 
     def cmd_export_run(self):
-        self.save_filename = filedialog.asksaveasfilename(initialdir=".", title="Select File to Save To")
-        print (self.save_filename)
+        self.save_filename = filedialog.asksaveasfilename(
+            initialdir=".", title="Select File to Save To"
+        )
+        print(self.save_filename)
 
     def cmd_quit(self):
         self.stop()
@@ -573,7 +685,6 @@ class MainWindow(object):
     def cmd_stop(self, event=None):
         "Command: The stop button has been pressed"
         self.stop()
-
 
     def cmd_run_all(self, event=None):
         "Command: The Run all button has been pressed"
@@ -588,7 +699,7 @@ class MainWindow(object):
 
         # If a node is selected, it needs to be made active
         for path in current_tree.selection():
-            parts = path.split('.')
+            parts = path.split(".")
             testModule = self.project
             for part in parts:
                 testModule = testModule[part]
@@ -606,8 +717,8 @@ class MainWindow(object):
 
     def cmd_load_ip_address(self):
         # Update the instrument IP address.
-        update_settings('Host', self.instr_ip_addr.get())
-        assert get_setting('Host') == self.instr_ip_addr.get()
+        update_settings("Host", self.instr_ip_addr.get())
+        assert get_setting("Host") == self.instr_ip_addr.get()
 
     def cmd_rerun(self, event=None):
         "Command: The re-run button has been pressed"
@@ -617,11 +728,12 @@ class MainWindow(object):
     def cmd_help_documentation(self):
         "Command: Open documentation"
         import webbrowser
-        webbrowser.open_new('file://' + os.path.realpath('Readme.htm'))
+
+        webbrowser.open_new("file://" + os.path.realpath("Readme.htm"))
 
     def on_testModuleClicked(self, event):
         "Event handler: a module has been clicked in the tree"
-        parts = event.widget.focus().split('.')
+        parts = event.widget.focus().split(".")
         testModule = self.project
         for part in parts:
             testModule = testModule[part]
@@ -630,7 +742,7 @@ class MainWindow(object):
 
     def on_testCaseClicked(self, event):
         "Event handler: a test case has been clicked in the tree"
-        parts = event.widget.focus().split('.')
+        parts = event.widget.focus().split(".")
         testCase = self.project
         for part in parts:
             testCase = testCase[part]
@@ -639,7 +751,7 @@ class MainWindow(object):
 
     def on_testMethodClicked(self, event):
         "Event handler: a test case has been clicked in the tree"
-        parts = event.widget.focus().split('.')
+        parts = event.widget.focus().split(".")
         testMethod = self.project
         for part in parts:
             testMethod = testMethod[part]
@@ -648,11 +760,11 @@ class MainWindow(object):
 
     def on_testModuleSelected(self, event):
         "Event handler: a test module has been selected in the tree"
-        self.name.set('')
-        self.test_status.set('')
+        self.name.set("")
+        self.test_status.set("")
 
-        self.duration.set('')
-        self.description.delete('1.0', END)
+        self.duration.set("")
+        self.description.delete("1.0", END)
 
         self._hide_test_output()
         self._hide_test_errors()
@@ -662,11 +774,11 @@ class MainWindow(object):
 
     def on_testCaseSelected(self, event):
         "Event handler: a test case has been selected in the tree"
-        self.name.set('')
-        self.test_status.set('')
+        self.name.set("")
+        self.test_status.set("")
 
-        self.duration.set('')
-        self.description.delete('1.0', END)
+        self.duration.set("")
+        self.description.delete("1.0", END)
 
         self._hide_test_output()
         self._hide_test_errors()
@@ -677,7 +789,7 @@ class MainWindow(object):
     def on_testMethodSelected(self, event):
         "Event handler: a test case has been selected in the tree"
         if len(event.widget.selection()) == 1:
-            parts = event.widget.selection()[0].split('.')
+            parts = event.widget.selection()[0].split(".")
 
             # Find the definition for the actual test method
             # out of the project.
@@ -687,16 +799,16 @@ class MainWindow(object):
 
             self.name.set(testMethod.path)
 
-            self.description.delete('1.0', END)
-            self.description.insert('1.0', testMethod.description)
+            self.description.delete("1.0", END)
+            self.description.insert("1.0", testMethod.description)
 
             config = STATUS.get(testMethod.status, STATUS_DEFAULT)
-            self.test_status_widget.config(foreground=config['color'])
-            self.test_status.set(config['symbol'])
+            self.test_status_widget.config(foreground=config["color"])
+            self.test_status.set(config["symbol"])
 
             if testMethod._result:
                 # Test has been executed
-                self.duration.set('%0.2fs' % testMethod._result['duration'])
+                self.duration.set("%0.2fs" % testMethod._result["duration"])
 
                 if testMethod.output:
                     self._show_test_output(testMethod.output)
@@ -709,18 +821,18 @@ class MainWindow(object):
                     self._hide_test_errors()
             else:
                 # Test hasn't been executed yet.
-                self.duration.set('Not executed')
+                self.duration.set("Not executed")
 
                 self._hide_test_output()
                 self._hide_test_errors()
 
         else:
             # Multiple tests selected
-            self.name.set('')
-            self.test_status.set('')
+            self.name.set("")
+            self.test_status.set("")
 
-            self.duration.set('')
-            self.description.delete('1.0', END)
+            self.duration.set("")
+            self.description.delete("1.0", END)
 
             self._hide_test_output()
             self._hide_test_errors()
@@ -732,50 +844,58 @@ class MainWindow(object):
         "Event handler: a new node has been added to the tree"
         try:
             self.all_tests_tree.insert(
-                node.parent.path, 'end', node.path,
+                node.parent.path,
+                "end",
+                node.path,
                 text=node.name,
-                tags=[node.__class__.__name__, 'active'],
-                open=True
+                tags=[node.__class__.__name__, "active"],
+                open=True,
             )
         except:
-            #print("Test already added ignoring.")
+            # print("Test already added ignoring.")
             pass
 
     def on_nodeActive(self, node):
         "Event handler: a node on the tree has been made active"
-        self.all_tests_tree.item(node.path, tags=[node.__class__.__name__, 'active'])
+        self.all_tests_tree.item(node.path, tags=[node.__class__.__name__, "active"])
         self.all_tests_tree.item(node.path, open=True)
 
     def on_nodeInactive(self, node):
         "Event handler: a node on the tree has been made inactive"
-        self.all_tests_tree.item(node.path, tags=[node.__class__.__name__, 'inactive'])
+        self.all_tests_tree.item(node.path, tags=[node.__class__.__name__, "inactive"])
         self.all_tests_tree.item(node.path, open=False)
 
     def on_nodeStatusUpdate(self, node):
         "Event handler: a node on the tree has received a status update"
-        self.all_tests_tree.item(node.path, tags=['TestMethod', STATUS[node.status]['tag']])
+        self.all_tests_tree.item(
+            node.path, tags=["TestMethod", STATUS[node.status]["tag"]]
+        )
 
         if node.status in TestMethod.FAILING_STATES:
             # Test is in a failing state. Make sure it is on the problem tree,
             # with the correct current status.
 
-            parts = node.path.split('.')
+            parts = node.path.split(".")
             parentModule = self.project
             for pos, part in enumerate(parts):
-                path = '.'.join(parts[:pos+1])
+                path = ".".join(parts[: pos + 1])
                 testModule = parentModule[part]
 
                 if not self.problem_tests_tree.exists(path):
                     self.problem_tests_tree.insert(
-                        parentModule.path, 'end', testModule.path,
+                        parentModule.path,
+                        "end",
+                        testModule.path,
                         text=testModule.name,
-                        tags=[testModule.__class__.__name__, 'active'],
-                        open=True
+                        tags=[testModule.__class__.__name__, "active"],
+                        open=True,
                     )
 
                 parentModule = testModule
 
-            self.problem_tests_tree.item(node.path, tags=['TestMethod', STATUS[node.status]['tag']])
+            self.problem_tests_tree.item(
+                node.path, tags=["TestMethod", STATUS[node.status]["tag"]]
+            )
         else:
             # Test passed; if it's on the problem tree, remove it.
             if self.problem_tests_tree.exists(node.path):
@@ -805,22 +925,24 @@ class MainWindow(object):
     def on_executorTestStart(self, event, test_path):
         "The executor has started running a new test."
         # Update status line, and set the tree item to active.
-        self.run_status.set('Running %s...' % test_path)
-        self.all_tests_tree.item(test_path, tags=['TestMethod', 'active'])
+        self.run_status.set("Running %s..." % test_path)
+        self.all_tests_tree.item(test_path, tags=["TestMethod", "active"])
 
     def on_executorTestEnd(self, event, test_path, result, remaining_time):
         "The executor has finished running a test."
         # Update the progress meter
         self.progress_value.set(self.progress_value.get() + 1)
 
-
         # Update the run summary
-        self.run_summary.set('Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s' % {
-            'total': self.executor.total_count,
-            'pass': self.executor.result_count.get(TestMethod.STATUS_PASS, 0),
-            'fail': self.executor.result_count.get(TestMethod.STATUS_FAIL, 0),
-            'skip': self.executor.result_count.get(TestMethod.STATUS_SKIP, 0)
-        })
+        self.run_summary.set(
+            "Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s"
+            % {
+                "total": self.executor.total_count,
+                "pass": self.executor.result_count.get(TestMethod.STATUS_PASS, 0),
+                "fail": self.executor.result_count.get(TestMethod.STATUS_FAIL, 0),
+                "skip": self.executor.result_count.get(TestMethod.STATUS_SKIP, 0),
+            }
+        )
 
         # If the test that just fininshed is the one (and only one)
         # selected on the tree, update the display.
@@ -834,11 +956,11 @@ class MainWindow(object):
                 current_tree.selection_set(current_tree.selection())
         else:
             # No or Multiple tests selected
-            self.name.set('')
-            self.test_status.set('')
+            self.name.set("")
+            self.test_status.set("")
 
-            self.duration.set('')
-            self.description.delete('1.0', END)
+            self.duration.set("")
+            self.description.delete("1.0", END)
 
             self._hide_test_output()
             self._hide_test_errors()
@@ -846,7 +968,7 @@ class MainWindow(object):
     def on_executorSuiteEnd(self, event, error=None):
         "The test suite finished running."
         # Display the final results
-        self.run_status.set('Finished.')
+        self.run_status.set("Finished.")
 
         if error:
             TestErrorsDialog(self.root, error)
@@ -856,19 +978,23 @@ class MainWindow(object):
         else:
             dialog = tkMessageBox.showinfo
 
-        message = ', '.join(
-            '%d %s' % (count, TestMethod.STATUS_LABELS[state])
-            for state, count in sorted(self.executor.result_count.items()))
+        message = ", ".join(
+            "%d %s" % (count, TestMethod.STATUS_LABELS[state])
+            for state, count in sorted(self.executor.result_count.items())
+        )
 
-        dialog(message=message or 'No tests were ran')
+        dialog(message=message or "No tests were ran")
 
         # Update the run summary
-        self.run_summary.set('Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s' % {
-            'total': self.executor.total_count,
-            'pass': self.executor.result_count.get(TestMethod.STATUS_PASS, 0),
-            'fail': self.executor.result_count.get(TestMethod.STATUS_FAIL, 0),
-            'skip': self.executor.result_count.get(TestMethod.STATUS_SKIP, 0)
-        })
+        self.run_summary.set(
+            "Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s"
+            % {
+                "total": self.executor.total_count,
+                "pass": self.executor.result_count.get(TestMethod.STATUS_PASS, 0),
+                "fail": self.executor.result_count.get(TestMethod.STATUS_FAIL, 0),
+                "skip": self.executor.result_count.get(TestMethod.STATUS_SKIP, 0),
+            }
+        )
 
         # Reset the buttons
         self.reset_button_states_on_end()
@@ -879,7 +1005,7 @@ class MainWindow(object):
     def on_executorSuiteError(self, event, error):
         "An error occurred running the test suite."
         # Display the error in a dialog
-        self.run_status.set('Error running test suite.')
+        self.run_status.set("Error running test suite.")
         FailedTestDialog(self.root, error)
 
         # Reset the buttons
@@ -916,15 +1042,13 @@ class MainWindow(object):
             be executed
         """
         count, labels = self.project.find_tests(active, status, labels)
-        self.run_status.set('Running...')
+        self.run_status.set("Running...")
 
         # Update the run summary
-        self.run_summary.set('Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s' % {
-            'total': count,
-            'pass': 0,
-            'fail': 0,
-            'skip': 0
-        })
+        self.run_summary.set(
+            "Total:%(total)s Passed:%(pass)s Failed:%(fail)s Skipped:%(skip)s"
+            % {"total": count, "pass": 0, "fail": 0, "skip": 0}
+        )
 
         self.stop_button.configure(state=NORMAL)
 
@@ -932,8 +1056,7 @@ class MainWindow(object):
         self.run_selected_button.configure(state=DISABLED)
         self.rerun_button.configure(state=DISABLED)
 
-
-        self.progress['maximum'] = count
+        self.progress["maximum"] = count
         self.progress_value.set(0)
         # Create the runner
         self.executor = Runner(self.project, count, labels, self.testdir_name.get())
@@ -944,12 +1067,12 @@ class MainWindow(object):
     def stop(self):
         "Stop the test suite."
         if self.executor and self.executor.is_running:
-            self.run_status.set('Stopping...')
+            self.run_status.set("Stopping...")
 
             self.executor.terminate()
             self.executor = None
 
-            self.run_status.set('Stopped.')
+            self.run_status.set("Stopped.")
 
             self.reset_button_states_on_end()
 
@@ -962,8 +1085,8 @@ class MainWindow(object):
 
     def _show_test_output(self, content):
         "Show the test output panel on the test results page"
-        self.output.delete('1.0', END)
-        self.output.insert('1.0', content)
+        self.output.delete("1.0", END)
+        self.output.insert("1.0", content)
 
         self.output_label.grid()
         self.output.grid()
@@ -978,8 +1101,8 @@ class MainWindow(object):
 
     def _show_test_errors(self, content):
         "Show the test error panel on the test results page"
-        self.error.delete('1.0', END)
-        self.error.insert('1.0', content)
+        self.error.delete("1.0", END)
+        self.error.insert("1.0", content)
 
         self.error_label.grid()
         self.error.grid()
@@ -990,10 +1113,10 @@ class StackTraceDialog(Toplevel):
     OK = 1
     CANCEL = 2
 
-    def __init__(self, parent, title, label, trace, button_text='OK',
-                 cancel_text='Cancel'):
-        '''Show a dialog with a scrollable stack trace.
-        '''
+    def __init__(
+        self, parent, title, label, trace, button_text="OK", cancel_text="Cancel"
+    ):
+        """Show a dialog with a scrollable stack trace."""
         Toplevel.__init__(self, parent)
         self.withdraw()  # remain invisible for now
         if parent.winfo_viewable():
@@ -1009,20 +1132,35 @@ class StackTraceDialog(Toplevel):
         self.label.grid(column=0, row=0, padx=5, pady=5, sticky=(W, E))
 
         self.description = ReadOnlyText(self.frame, width=80, height=20)
-        self.description.grid(column=0, columnspan=2, row=1, pady=5, sticky=(N, S, E, W,))
+        self.description.grid(
+            column=0,
+            columnspan=2,
+            row=1,
+            pady=5,
+            sticky=(
+                N,
+                S,
+                E,
+                W,
+            ),
+        )
 
         self.description_scrollbar = Scrollbar(self.frame, orient=VERTICAL)
         self.description_scrollbar.grid(column=1, row=1, pady=5, sticky=(N, S, E))
         self.description.config(yscrollcommand=self.description_scrollbar.set)
         self.description_scrollbar.config(command=self.description.yview)
 
-        self.description.insert('1.0', trace)
+        self.description.insert("1.0", trace)
 
         if cancel_text is not None:
-            self.cancel_button = Button(self.frame, text=cancel_text, command=self.cancel)
+            self.cancel_button = Button(
+                self.frame, text=cancel_text, command=self.cancel
+            )
             self.cancel_button.grid(column=0, row=2, padx=5, pady=5, sticky=(E,))
 
-        self.ok_button = Button(self.frame, text=button_text, command=self.ok, default=ACTIVE)
+        self.ok_button = Button(
+            self.frame, text=button_text, command=self.ok, default=ACTIVE
+        )
         self.ok_button.grid(column=1, row=2, padx=5, pady=5, sticky=(E,))
 
         self.columnconfigure(0, weight=1)
@@ -1036,11 +1174,12 @@ class StackTraceDialog(Toplevel):
         self.frame.rowconfigure(2, weight=0)
 
         self.protocol("WM_DELETE_WINDOW", self.cancel)
-        self.bind('<Return>', self.ok)
+        self.bind("<Return>", self.ok)
 
         if self.parent is not None:
-            self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
-                                      parent.winfo_rooty()+50))
+            self.geometry(
+                "+%d+%d" % (parent.winfo_rootx() + 50, parent.winfo_rooty() + 50)
+            )
 
         self.deiconify()  # become visible now
         self.ok_button.focus_set()
@@ -1072,16 +1211,15 @@ class StackTraceDialog(Toplevel):
 
 class FailedTestDialog(StackTraceDialog):
     def __init__(self, parent, trace):
-        '''Report an error when running a test suite.
-        '''
+        """Report an error when running a test suite."""
         StackTraceDialog.__init__(
             self,
             parent,
-            'Error running test suite',
-            'The following stack trace was generated when attempting to run the test suite:',
+            "Error running test suite",
+            "The following stack trace was generated when attempting to run the test suite:",
             trace,
-            button_text='OK',
-            cancel_text='Quit',
+            button_text="OK",
+            cancel_text="Quit",
         )
 
     def cancel(self, event=None):
@@ -1091,35 +1229,36 @@ class FailedTestDialog(StackTraceDialog):
 
 class TestErrorsDialog(StackTraceDialog):
     def __init__(self, parent, trace):
-        '''Show a dialog with a scrollable list of errors.
-        '''
+        """Show a dialog with a scrollable list of errors."""
         StackTraceDialog.__init__(
             self,
             parent,
-            'Errors during test suite',
-            ('The following errors were generated while running the test suite:'),
+            "Errors during test suite",
+            ("The following errors were generated while running the test suite:"),
             trace,
-            button_text='OK',
-            cancel_text='Cancel',
+            button_text="OK",
+            cancel_text="Cancel",
         )
 
     def cancel(self, event=None):
         StackTraceDialog.cancel(self, event=event)
         self.parent.quit()
 
+
 class TestLoadErrorDialog(StackTraceDialog):
     def __init__(self, parent, trace):
-        '''Show a dialog with a scrollable stack trace.
-        '''
+        """Show a dialog with a scrollable stack trace."""
         StackTraceDialog.__init__(
             self,
             parent,
-            'Error discovering test suite',
-            ('The following stack trace was generated when attempting to '
-             'discover the test suite:'),
+            "Error discovering test suite",
+            (
+                "The following stack trace was generated when attempting to "
+                "discover the test suite:"
+            ),
             trace,
-            button_text='Retry',
-            cancel_text='Quit',
+            button_text="Retry",
+            cancel_text="Quit",
         )
 
     def cancel(self, event=None):
@@ -1129,16 +1268,18 @@ class TestLoadErrorDialog(StackTraceDialog):
 
 class IgnorableTestLoadErrorDialog(StackTraceDialog):
     def __init__(self, parent, trace):
-        '''Show a dialog with a scrollable stack trace when loading
-           tests turned up errors in stderr but they can safely be ignored.
-        '''
+        """Show a dialog with a scrollable stack trace when loading
+        tests turned up errors in stderr but they can safely be ignored.
+        """
         StackTraceDialog.__init__(
             self,
             parent,
-            'Error discovering test suite',
-            ('The following error where captured during test discovery '
-             'but running the tests might still work:'),
+            "Error discovering test suite",
+            (
+                "The following error where captured during test discovery "
+                "but running the tests might still work:"
+            ),
             trace,
-            button_text='Continue',
-            cancel_text='Quit',
+            button_text="Continue",
+            cancel_text="Quit",
         )

@@ -1,19 +1,18 @@
-'''
+"""
 Module for creating a project and running main Loop
-'''
+"""
 
 try:
     from Tkinter import *
 except ImportError:
     from tkinter import *
 
-from view import MainWindow
-from model import UnittestProject
+from libs.model import UnittestProject
+from libs.view import MainWindow
 
 
 def main_loop(Model=UnittestProject):
-    '''Run the main loop of the app.
-    '''
+    """Run the main loop of the app."""
     # Set up the root Tk context
     root = Tk()
 
@@ -25,6 +24,7 @@ def main_loop(Model=UnittestProject):
 
     # Run the main loop
     view.mainloop()
+
 
 if __name__ == "__main__":
     main_loop()
