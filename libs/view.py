@@ -3,6 +3,8 @@
 import subprocess
 import sys
 
+from libs.constants import DEFAULT_TEST_DIR
+
 try:
     import tkFileDialog as filedialog
     import tkMessageBox
@@ -20,7 +22,6 @@ except ImportError:
 
 import os
 
-from libs.config import get_setting, update_settings
 from libs.model import ModelLoadError, TestCase, TestMethod, TestModule
 from libs.runner import Runner
 
@@ -335,7 +336,7 @@ class MainWindow(object):
         self.testdir_widget = Entry(
             self.details_frame, textvariable=self.testdir_name, width=40
         )
-        self.testdir_name.set("tests")
+        self.testdir_name.set(DEFAULT_TEST_DIR)
         self.testdir_widget.grid(column=1, row=1, sticky=(W))
 
         # Reload Tests Load Button.
@@ -609,7 +610,7 @@ class MainWindow(object):
         # Listen for any status updates on nodes in the tree.
         TestMethod.bind("status_update", self.on_nodeStatusUpdate)
 
-    def reload_project(self, testdir="tests"):
+    def reload_project(self, testdir=DEFAULT_TEST_DIR):
         # If the directory does not exist, throw an error message and don't do anything.
         if os.path.exists(testdir) is False:
             dialog = tkMessageBox.showerror
@@ -621,7 +622,7 @@ class MainWindow(object):
 
         self.project = self.load_project(self.root, self.Model, testdir)
 
-    def load_project(self, root, Model, testdir="tests"):
+    def load_project(self, root, Model, testdir=DEFAULT_TEST_DIR):
         self.Model = Model
         project = None
         while project is None:

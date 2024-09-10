@@ -1,5 +1,7 @@
 import json
 
+from libs.constants import DEFAULT_TEST_DIR
+
 try:
     from StringIO import StringIO
 except ImportError:
@@ -66,7 +68,7 @@ class PipedTestResult(unittest.result.TestResult):
 
         if self.use_old_discovery:
             parts = test.id().split(".")
-            tests_index = parts.index("tests")
+            tests_index = parts.index(DEFAULT_TEST_DIR)
             path = "%s.%s.%s" % (parts[tests_index - 1], parts[-2], parts[-1])
         else:
             path = test.id()

@@ -3,6 +3,8 @@ import subprocess
 import sys
 from threading import Thread
 
+from libs.constants import DEFAULT_TEST_DIR
+
 try:
     from Queue import Empty, Queue
 except ImportError:
@@ -320,9 +322,9 @@ class PyTestExecutor(object):
         print("Calling stream_suite: " + str(suite))
         pipes.PipedTestRunner().run(suite)
 
-    def stream_results(self, testdir="tests"):
+    def stream_results(self, testdir=DEFAULT_TEST_DIR):
         if testdir is None:
-            testdir = "tests"
+            testdir = DEFAULT_TEST_DIR
 
         loader = unittest.TestLoader()
         tests = loader.discover(testdir)

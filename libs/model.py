@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 
+from libs.constants import DEFAULT_TEST_DIR
 from libs.events import EventSource
 
 
@@ -420,7 +421,7 @@ class UnittestProject(Project):
     def __init__(self):
         super(UnittestProject, self).__init__()
 
-    def discover_commandline(self, testdir="tests"):
+    def discover_commandline(self, testdir=DEFAULT_TEST_DIR):
         """Command line: Discover all available tests in a project."""
         # Dynamically resolve the absolute path to discover.py in the libs directory
         base_dir = os.path.dirname(
@@ -429,7 +430,7 @@ class UnittestProject(Project):
         discover_script = os.path.join(base_dir, "discover.py")
         return [sys.executable, discover_script, "--testdir", testdir]
 
-    def execute_commandline(self, labels, testdir="tests"):
+    def execute_commandline(self, labels, testdir=DEFAULT_TEST_DIR):
         """Return the command line to execute the specified test labels."""
         base_dir = os.path.dirname(
             os.path.abspath(__file__)
