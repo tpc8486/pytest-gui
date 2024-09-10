@@ -9,7 +9,6 @@ except ImportError:
     from queue import Queue, Empty  # python 3.x
 
 from libs import pipes
-
 from libs.events import EventSource
 from libs.model import TestMethod
 
@@ -150,9 +149,9 @@ class Runner(EventSource):
         for line in lines:
             # Look for a separator.
             if line in (
-                    pipes.PipedTestResult.RESULT_SEPARATOR,
-                    pipes.PipedTestRunner.START_TEST_RESULTS,
-                    pipes.PipedTestRunner.END_TEST_RESULTS,
+                pipes.PipedTestResult.RESULT_SEPARATOR,
+                pipes.PipedTestRunner.START_TEST_RESULTS,
+                pipes.PipedTestRunner.END_TEST_RESULTS,
             ):
                 if self.buffer is None:
                     # Preamble is finished. Set up the line buffer.
@@ -323,7 +322,7 @@ class PyTestExecutor(object):
 
     def stream_results(self, testdir="tests"):
         if testdir is None:
-            testdir="tests"
+            testdir = "tests"
 
         loader = unittest.TestLoader()
         tests = loader.discover(testdir)

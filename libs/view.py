@@ -315,16 +315,16 @@ class MainWindow(object):
         self.instrument_ip_address_label = Label(self.details_frame, text="Meta Data")
         # self.instrument_ip_address_label.grid(column=0, row=0, sticky=(W))
 
-        self.instr_ip_addr = StringVar()
-        self.instr_ip_addr_widget = Entry(
-            self.details_frame, textvariable=self.instr_ip_addr, width=60
-        )
-        self.instr_ip_addr.set(get_setting("Host") or "Not Found")
+        # self.instr_ip_addr = StringVar()
+        # self.instr_ip_addr_widget = Entry(
+        #     self.details_frame, textvariable=self.instr_ip_addr, width=60
+        # )
+        # self.instr_ip_addr.set(get_setting("Host") or "Not Found")
         # self.instr_ip_addr_widget.grid(column=1, row=0, sticky=(W))
 
-        self.reload_ip_address = Button(
-            self.details_frame, text="Update Meta", command=self.cmd_load_ip_address
-        )
+        # self.reload_ip_address = Button(
+        #     self.details_frame, text="Update Meta", command=self.cmd_load_ip_address
+        # )
         # self.reload_ip_address.grid(column=1, row=0, sticky=(E))
 
         # Add label for test directory
@@ -335,7 +335,7 @@ class MainWindow(object):
         self.testdir_widget = Entry(
             self.details_frame, textvariable=self.testdir_name, width=40
         )
-        self.testdir_name.set(get_setting("StartDir"))
+        self.testdir_name.set("tests")
         self.testdir_widget.grid(column=1, row=1, sticky=(W))
 
         # Reload Tests Load Button.
@@ -715,13 +715,13 @@ class MainWindow(object):
         # Reload the project tree on left side.
         self.reload_project(self.testdir_name.get())
 
-    def cmd_load_ip_address(self):
-        # Update the instrument IP address.
-        update_settings("Host", self.instr_ip_addr.get())
-        assert get_setting("Host") == self.instr_ip_addr.get()
+    # def cmd_load_ip_address(self):
+    #     # Update the instrument IP address.
+    #     update_settings("Host", self.instr_ip_addr.get())
+    #     assert get_setting("Host") == self.instr_ip_addr.get()
 
     def cmd_rerun(self, event=None):
-        "Command: The re-run button has been pressed"
+        """Command: The re-run button has been pressed"""
         if not self.executor or not self.executor.is_running:
             self.run(status=set(TestMethod.FAILING_STATES))
 

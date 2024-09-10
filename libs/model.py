@@ -423,13 +423,17 @@ class UnittestProject(Project):
     def discover_commandline(self, testdir="tests"):
         """Command line: Discover all available tests in a project."""
         # Dynamically resolve the absolute path to discover.py in the libs directory
-        base_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current file
+        base_dir = os.path.dirname(
+            os.path.abspath(__file__)
+        )  # Get the directory of the current file
         discover_script = os.path.join(base_dir, "discover.py")
         return [sys.executable, discover_script, "--testdir", testdir]
 
     def execute_commandline(self, labels, testdir="tests"):
         """Return the command line to execute the specified test labels."""
-        base_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current file
+        base_dir = os.path.dirname(
+            os.path.abspath(__file__)
+        )  # Get the directory of the current file
         runner_script = os.path.join(base_dir, "runner.py")
         args = [sys.executable, runner_script, "--testdir", testdir]
         return args + labels
