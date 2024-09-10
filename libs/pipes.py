@@ -1,16 +1,10 @@
 import json
-
-from libs.constants import DEFAULT_TEST_DIR
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
 import sys
 import time
 import traceback
 import unittest
+from io import StringIO
+from libs.constants import DEFAULT_TEST_DIR
 
 
 class PipedTestResult(unittest.result.TestResult):
@@ -19,146 +13,107 @@ class PipedTestResult(unittest.result.TestResult):
     RESULT_SEPARATOR = "\x1f"  # ASCII US (Unit Separator)
 
     def __init__(self, stream, use_old_discovery=True):
-        super(PipedTestResult, self).__init__()
+        super().__init__()
         self.stream = stream
         self.use_old_discovery = use_old_discovery
         self._first = True
 
-        # Create a clean buffer for stdout content.
+        # Create a clean buffer for stdout content
         self._stdout = StringIO()
-        sys.stdout = self._stdout
         self._current_test = None
 
-    def _trim_docstring(self, docstring):
+    @staticmethod
+    def _trim_docstring(docstring):
+        """Trim the docstring to remove leading/trailing whitespace and indentation."""
         lines = docstring.expandtabs().splitlines()
-        indent = sys.maxsize
-        for line in lines[1:]:
-            stripped = line.lstrip()
-            if stripped:
-                indent = min(indent, len(line) - len(stripped))
+
+        # Calculate the minimum indentation level for all non-empty lines except the first one
+        if not lines:
+            return ""
+
+        indent = min(
+            (len(line) - len(line.lstrip()))
+            for line in lines[1:]
+            if line.strip()
+        ) if lines[1:] else 0
+
         trimmed = [lines[0].strip()]
-        if indent < sys.maxsize:
-            for line in lines[1:]:
-                trimmed.append(line[indent:].rstrip())
-        # Strip off trailing and leading blank lines:
-        while trimmed and not trimmed[-1]:
-            trimmed.pop()
-        while trimmed and not trimmed[0]:
-            trimmed.pop(0)
-        # Return a single string:
+        if indent > 0:
+            trimmed.extend(line[indent:].rstrip() for line in lines[1:])
+
+        # Strip off trailing and leading blank lines
+        trimmed = [line for line in trimmed if line]
+
         return "\n".join(trimmed)
 
     def description(self, test):
+        """Get a trimmed description of the test."""
         try:
-            # Wrapped _ErrorHolder objects have their own description
             return self._trim_docstring(test.description)
         except AttributeError:
-            # Fall back to the docstring on the method itself.
-            if test._testMethodDoc:
-                return self._trim_docstring(test._testMethodDoc)
-            else:
-                return "No description"
+            return self._trim_docstring(test._testMethodDoc) if test._testMethodDoc else "No description"
+
+    def _write_result(self, status, test, error=None):
+        """Write a test result to the stream in JSON format."""
+        body = {
+            "status": status,
+            "end_time": time.time(),
+            "description": self.description(test),
+            "output": self._stdout.getvalue(),
+        }
+        if error:
+            body["error"] = "\n".join(traceback.format_exception(*error))
+        self.stream.write(f"{json.dumps(body)}\n")
+        self.stream.flush()
+        self._current_test = None
 
     def startTest(self, test):
-        super(PipedTestResult, self).startTest(test)
-        # We know we're starting a new test - record it.
+        super().startTest(test)
         self._current_test = test
         self._stdout = StringIO()
         sys.stdout = self._stdout
 
+        path = self._get_test_path(test)
+        body = {"path": path, "start_time": time.time()}
+        if self._first:
+            self.stream.write(f"{PipedTestRunner.START_TEST_RESULTS}\n")
+            self._first = False
+        else:
+            self.stream.write(f"{self.RESULT_SEPARATOR}\n")
+        self.stream.write(f"{json.dumps(body)}\n")
+        self.stream.flush()
+
+    def _get_test_path(self, test):
         if self.use_old_discovery:
             parts = test.id().split(".")
             tests_index = parts.index(DEFAULT_TEST_DIR)
-            path = "%s.%s.%s" % (parts[tests_index - 1], parts[-2], parts[-1])
-        else:
-            path = test.id()
-
-        body = {"path": path, "start_time": time.time()}
-        if self._first:
-            self.stream.write(PipedTestRunner.START_TEST_RESULTS + "\n")
-            self._first = False
-        else:
-            self.stream.write(self.RESULT_SEPARATOR + "\n")
-        self.stream.write("%s\n" % json.dumps(body))
-        self.stream.flush()
+            return f"{parts[tests_index - 1]}.{parts[-2]}.{parts[-1]}"
+        return test.id()
 
     def addSuccess(self, test):
-        super(PipedTestResult, self).addSuccess(test)
-        body = {
-            "status": "OK",
-            "end_time": time.time(),
-            "description": self.description(test),
-            "output": self._stdout.getvalue(),
-        }
-        self.stream.write("%s\n" % json.dumps(body))
-        self.stream.flush()
-        self._current_test = None
+        super().addSuccess(test)
+        self._write_result("OK", test)
 
     def addError(self, test, err):
-        # If there's no current test, the error occurred during test
-        # setup. Output a test start line so the protocol isn't confused.
         if self._current_test is None:
             self.startTest(test)
-
-        super(PipedTestResult, self).addError(test, err)
-        body = {
-            "status": "E",
-            "end_time": time.time(),
-            "description": self.description(test),
-            "error": "\n".join(traceback.format_exception(*err)),
-            "output": self._stdout.getvalue(),
-        }
-        self.stream.write("%s\n" % json.dumps(body))
-        self.stream.flush()
-        self._current_test = None
+        super().addError(test, err)
+        self._write_result("E", test, err)
 
     def addFailure(self, test, err):
-        super(PipedTestResult, self).addFailure(test, err)
-        body = {
-            "status": "F",
-            "end_time": time.time(),
-            "description": self.description(test),
-            "error": "\n".join(traceback.format_exception(*err)),
-            "output": self._stdout.getvalue(),
-        }
-        self.stream.write("%s\n" % json.dumps(body))
-        self.stream.flush()
-        self._current_test = None
+        super().addFailure(test, err)
+        self._write_result("F", test, err)
 
     def addSubTest(self, test, subtest, err):
-        super(PipedTestResult, self).addSubTest(test, subtest, err)
         if err is None:
-            body = {
-                "status": "OK",
-                "end_time": time.time(),
-                "description": self.description(test),
-                "output": self._stdout.getvalue(),
-            }
-            self.stream.write("%s\n" % json.dumps(body))
-            self.stream.flush()
+            self._write_result("OK", test)
         elif issubclass(err[0], test.failureException):
-            body = {
-                "status": "F",
-                "end_time": time.time(),
-                "description": self.description(test),
-                "error": "\n".join(traceback.format_exception(*err)),
-                "output": self._stdout.getvalue(),
-            }
-            self.stream.write("%s\n" % json.dumps(body))
-            self.stream.flush()
+            self._write_result("F", test, err)
         else:
-            body = {
-                "status": "E",
-                "end_time": time.time(),
-                "description": self.description(test),
-                "error": "\n".join(traceback.format_exception(*err)),
-                "output": self._stdout.getvalue(),
-            }
-            self.stream.write("%s\n" % json.dumps(body))
-            self.stream.flush()
+            self._write_result("E", test, err)
 
     def addSkip(self, test, reason):
-        super(PipedTestResult, self).addSkip(test, reason)
+        super().addSkip(test, reason)
         body = {
             "status": "s",
             "end_time": time.time(),
@@ -166,59 +121,43 @@ class PipedTestResult(unittest.result.TestResult):
             "error": reason,
             "output": self._stdout.getvalue(),
         }
-        self.stream.write("%s\n" % json.dumps(body))
+        self.stream.write(f"{json.dumps(body)}\n")
         self.stream.flush()
         self._current_test = None
 
     def addExpectedFailure(self, test, err):
-        super(PipedTestResult, self).addExpectedFailure(test, err)
-        body = {
-            "status": "x",
-            "end_time": time.time(),
-            "description": self.description(test),
-            "error": "\n".join(traceback.format_exception(*err)),
-            "output": self._stdout.getvalue(),
-        }
-        self.stream.write("%s\n" % json.dumps(body))
-        self.stream.flush()
-        self._current_test = None
+        super().addExpectedFailure(test, err)
+        self._write_result("x", test, err)
 
     def addUnexpectedSuccess(self, test):
-        super(PipedTestResult, self).addUnexpectedSuccess(test)
+        super().addUnexpectedSuccess(test)
         body = {
             "status": "u",
             "end_time": time.time(),
             "description": self.description(test),
             "output": self._stdout.getvalue(),
         }
-        self.stream.write("%s\n" % json.dumps(body))
+        self.stream.write(f"{json.dumps(body)}\n")
         self.stream.flush()
         self._current_test = None
 
 
 class PipedTestRunner(unittest.TextTestRunner):
-    """A test runner class that displays results in machine-parseable format."""
+    """A test runner class that displays results in a machine-parseable format."""
 
     START_TEST_RESULTS = "\x02"  # ASCII STX (Start of Text)
-    END_TEST_RESULTS = "\x03"  # ASCII ETX (End of Text)
+    END_TEST_RESULTS = "\x03"    # ASCII ETX (End of Text)
 
     def __init__(self, stream=sys.stdout, use_old_discovery=False):
-        self.stream = stream
+        super().__init__(stream=stream)
         self.use_old_discovery = use_old_discovery
 
     def run(self, test):
-        "Run the given test case or test suite."
-        # Remember stdout reference so it can be restored later
+        """Run the given test case or test suite."""
         old_stdout = sys.stdout
-
-        # Create the result pipe, and run the tests with it.
         result = PipedTestResult(self.stream, self.use_old_discovery)
         test(result)
-
-        # Report end of test run
-        self.stream.write(self.END_TEST_RESULTS + "\n")
+        self.stream.write(f"{self.END_TEST_RESULTS}\n")
         self.stream.flush()
-
-        # Restore the stdout reference
         sys.stdout = old_stdout
         return result
